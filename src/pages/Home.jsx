@@ -12,17 +12,18 @@ import { useGSAP } from "@gsap/react";
 import { toast } from "react-toastify";
 
 import LocationSearchPanel from "../components/LocationSearchPanel";
-import VehiclePanel from "../components/vehiclePanel";
+import VehiclePanel from "../components/VehiclePanel";
 import ConfirmRide from "../components/ConfirmRide";
 import LookingForDriver from "../components/LookingForDriver";
 import WaitingForDriver from "../components/WaitingForDriver";
+
 import pickupNotificationSound from "../assets/pickup-notification.mp3";
+import homeImage from "../assets/home.png";
 
 import { SocketDataContext } from "../context/SocketContext";
 import { UserDataContext } from "../context/UserContext";
 
 const Home = () => {
-
   // ================= STATES =================
 
   const [pickup, setPickup] = useState("");
@@ -55,28 +56,44 @@ const Home = () => {
   const [otpReceived, setOtpReceived] =
     useState(null);
 
-  const pickupAudioRef = useRef(new Audio(pickupNotificationSound));
+  const pickupAudioRef = useRef(
+    new Audio(pickupNotificationSound)
+  );
 
   // ================= CONTEXT =================
 
   const { sendMessage, socket } =
     useContext(SocketDataContext);
-  const { user, setUser } = useContext(UserDataContext);
+
+  const { user, setUser } =
+    useContext(UserDataContext);
+
   const navigate = useNavigate();
+
+  // ================= LOGOUT =================
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+
     setUser({
       _id: "",
       email: "",
-      fullName: { firstName: "", lastName: "" },
+      fullName: {
+        firstName: "",
+        lastName: "",
+      },
     });
+
     toast.error("Logged out");
+
     navigate("/login");
   };
 
+  // ================= PICKUP SOUND =================
+
   const playPickupSound = async () => {
     const audio = pickupAudioRef.current;
+
     if (!audio) return;
 
     try {
@@ -98,38 +115,35 @@ const Home = () => {
   // ================= SOCKET JOIN =================
 
   useEffect(() => {
-
     if (!user?._id) return;
 
     const timer = setTimeout(() => {
-
       sendMessage("join", {
         userId: user._id,
         userType: "user",
       });
 
       console.log("✅ JOIN SENT:", user._id);
-
     }, 1000);
 
     return () => clearTimeout(timer);
-
-  }, [user]);
+  }, [user, sendMessage]);
 
   // ================= SOCKET EVENTS =================
 
   useEffect(() => {
-
     if (!socket) return;
 
     // ===== RIDE ACCEPTED =====
 
     const handleRideAccepted = (data) => {
-
       console.log("🎉 Ride Accepted:", data);
 
       setAcceptedRideData(data);
-      setOtpReceived(data?.ride?.otp ?? null);
+
+      setOtpReceived(
+        data?.ride?.otp ?? null
+      );
 
       setWaitingForDriverPanel(true);
 
@@ -137,76 +151,83 @@ const Home = () => {
 
       toast.success(
         `✅ Driver ${
-          data?.captain?.fullname?.firstname || "accepted"
+          data?.captain?.fullname?.firstname ||
+          "accepted"
         } your ride!`
       );
-
     };
 
     // ===== RIDE STARTED =====
 
     const handleRideStarted = (data) => {
-
       console.log("🚗 Ride Started:", data);
 
       setAcceptedRideData(data);
-      setOtpReceived(data?.ride?.otp ?? null);
+
+      setOtpReceived(
+        data?.ride?.otp ?? null
+      );
 
       toast.success(
-        data?.message || "🎉 Your ride has started!"
+        data?.message ||
+          "🎉 Your ride has started!"
       );
 
       playPickupSound();
-
     };
 
+    socket.on(
+      "ride-accepted",
+      handleRideAccepted
+    );
 
-    socket.on("ride-accepted", handleRideAccepted);
-
-    socket.on("ride-started", handleRideStarted);
+    socket.on(
+      "ride-started",
+      handleRideStarted
+    );
 
     return () => {
+      socket.off(
+        "ride-accepted",
+        handleRideAccepted
+      );
 
-      socket.off("ride-accepted", handleRideAccepted);
-
-      socket.off("ride-started", handleRideStarted);
-
+      socket.off(
+        "ride-started",
+        handleRideStarted
+      );
     };
-
   }, [socket]);
 
   // ================= PANEL ANIMATION =================
 
   useGSAP(() => {
+    if (!panelRef.current) return;
 
     if (panelOpen) {
-
       gsap.to(panelRef.current, {
         height: "70%",
         opacity: 1,
         padding: 24,
         duration: 0.5,
       });
-
     } else {
-
       gsap.to(panelRef.current, {
         height: "0%",
         opacity: 0,
         padding: 0,
         duration: 0.5,
       });
-
     }
-
   }, [panelOpen]);
 
   // ================= FETCH SUGGESTIONS =================
 
-  const fetchSuggestions = async (input, type) => {
-
+  const fetchSuggestions = async (
+    input,
+    type
+  ) => {
     try {
-
       const query = input?.trim();
 
       const finalInput =
@@ -220,84 +241,82 @@ const Home = () => {
           params: {
             input: finalInput,
           },
-
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${localStorage.getItem(
+              "token"
+            )}`,
           },
         }
       );
 
       if (type === "pickup") {
-
-        setPickupSuggestions(response.data || []);
-
+        setPickupSuggestions(
+          response.data || []
+        );
       } else {
-
-        setDestinationSuggestions(response.data || []);
-
+        setDestinationSuggestions(
+          response.data || []
+        );
       }
-
     } catch (error) {
-
       console.log(
         "Suggestion Error:",
-        error.response?.data || error.message
+        error.response?.data ||
+          error.message
       );
-
     }
-
   };
 
   // ================= PICKUP CHANGE =================
 
   const handlePickupChange = (e) => {
-
     const value = e.target.value;
 
     setPickup(value);
 
-    clearTimeout(pickupDebounce.current);
+    clearTimeout(
+      pickupDebounce.current
+    );
 
-    pickupDebounce.current = setTimeout(() => {
-
-      fetchSuggestions(value, "pickup");
-
-    }, 150);
-
+    pickupDebounce.current =
+      setTimeout(() => {
+        fetchSuggestions(
+          value,
+          "pickup"
+        );
+      }, 150);
   };
 
   // ================= DESTINATION CHANGE =================
 
   const handleDestinationChange = (e) => {
-
     const value = e.target.value;
 
     setDestination(value);
 
-    clearTimeout(destinationDebounce.current);
+    clearTimeout(
+      destinationDebounce.current
+    );
 
-    destinationDebounce.current = setTimeout(() => {
-
-      fetchSuggestions(value, "destination");
-
-    }, 150);
-
+    destinationDebounce.current =
+      setTimeout(() => {
+        fetchSuggestions(
+          value,
+          "destination"
+        );
+      }, 150);
   };
 
   // ================= FIND TRIP =================
 
   const findTrip = async () => {
-
     try {
-
       if (!pickup || !destination) {
-
         toast.error(
           "Please enter pickup and destination"
         );
 
         return;
-
       }
 
       if (
@@ -307,6 +326,7 @@ const Home = () => {
         toast.error(
           "Pickup and destination location was same"
         );
+
         return;
       }
 
@@ -318,7 +338,9 @@ const Home = () => {
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${localStorage.getItem(
+              "token"
+            )}`,
           },
         }
       );
@@ -330,54 +352,55 @@ const Home = () => {
 
       setFare(response.data.fare);
 
-      setDistance(response.data.distance);
+      setDistance(
+        response.data.distance
+      );
 
       setVehiclePanel(true);
-
     } catch (error) {
-
       console.log(
         "Find Trip Error:",
-        error.response?.data || error.message
+        error.response?.data ||
+          error.message
       );
 
       toast.error(
         error.response?.data?.message ||
-        "Something went wrong"
+          "Something went wrong"
       );
-
     }
-
   };
 
+  // ================= JSX =================
+
   return (
-
     <div className="h-screen relative overflow-hidden">
-
       {/* ================= BACKGROUND ================= */}
 
       <img
-        className="h-screen w-screen object-cover"
-        src="https://miro.medium.com/v2/resize:fit:1400/0*gwMx05pqII5hbfmX.gif"
-        alt="map"
+        className="absolute inset-0 h-screen w-screen object-cover"
+        src={homeImage}
+        alt="Uber map background"
       />
 
       {/* ================= MAIN ================= */}
 
-      <div className="absolute top-0 w-full h-screen flex flex-col justify-end">
-
+      <div className="absolute top-0 left-0 w-full h-screen flex flex-col justify-end">
         <div className="bg-white p-5 rounded-t-3xl relative z-10">
+          {/* ================= HEADER ================= */}
 
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-2xl font-bold">
               Find a Trip
             </h2>
+
             <button
               type="button"
               onClick={handleLogout}
               className="flex items-center gap-2 bg-black text-white px-3 py-2 rounded-full shadow-sm"
             >
               <i className="ri-logout-box-line text-lg"></i>
+
               Logout
             </button>
           </div>
@@ -386,21 +409,18 @@ const Home = () => {
 
           <input
             value={pickup}
-
             onFocus={() => {
-
               setPanelOpen(true);
 
               setActiveField("pickup");
 
-              fetchSuggestions("", "pickup");
-
+              fetchSuggestions(
+                "",
+                "pickup"
+              );
             }}
-
             onChange={handlePickupChange}
-
             placeholder="Enter Pickup Location"
-
             className="w-full p-4 bg-gray-100 rounded-xl outline-none text-lg"
           />
 
@@ -408,25 +428,26 @@ const Home = () => {
 
           <input
             value={destination}
-
             onFocus={() => {
-
               setPanelOpen(true);
 
-              setActiveField("destination");
+              setActiveField(
+                "destination"
+              );
 
-              fetchSuggestions("", "destination");
-
+              fetchSuggestions(
+                "",
+                "destination"
+              );
             }}
-
-            onChange={handleDestinationChange}
-
+            onChange={
+              handleDestinationChange
+            }
             placeholder="Enter Destination"
-
             className="w-full p-4 bg-gray-100 rounded-xl outline-none text-lg mt-4"
           />
 
-          {/* ================= BUTTON ================= */}
+          {/* ================= FIND TRIP BUTTON ================= */}
 
           <button
             onClick={findTrip}
@@ -434,7 +455,6 @@ const Home = () => {
           >
             Find Trip
           </button>
-
         </div>
 
         {/* ================= LOCATION PANEL ================= */}
@@ -442,27 +462,26 @@ const Home = () => {
         <div
           ref={panelRef}
           className="bg-white overflow-hidden opacity-0"
-          style={{ height: "0%" }}
+          style={{
+            height: "0%",
+          }}
         >
-
           <LocationSearchPanel
             suggestions={
               activeField === "pickup"
                 ? pickupSuggestions
                 : destinationSuggestions
             }
-
             activeField={activeField}
-
             setPickup={setPickup}
-
-            setDestination={setDestination}
-
-            setPanelOpen={setPanelOpen}
+            setDestination={
+              setDestination
+            }
+            setPanelOpen={
+              setPanelOpen
+            }
           />
-
         </div>
-
       </div>
 
       {/* ================= VEHICLE PANEL ================= */}
@@ -474,16 +493,22 @@ const Home = () => {
             : "translate-y-full"
         }`}
       >
-
         <VehiclePanel
           fare={fare}
           distance={distance}
-          selectedVehicle={selectedVehicle}
-          setSelectedVehicle={setSelectedVehicle}
-          setVehiclePanel={setVehiclePanel}
-          setConfirmRidePanel={setConfirmRidePanel}
+          selectedVehicle={
+            selectedVehicle
+          }
+          setSelectedVehicle={
+            setSelectedVehicle
+          }
+          setVehiclePanel={
+            setVehiclePanel
+          }
+          setConfirmRidePanel={
+            setConfirmRidePanel
+          }
         />
-
       </div>
 
       {/* ================= CONFIRM RIDE ================= */}
@@ -495,17 +520,25 @@ const Home = () => {
             : "translate-y-full"
         }`}
       >
-
         <ConfirmRide
           pickupLocation={pickup}
-          destinationLocation={destination}
+          destinationLocation={
+            destination
+          }
           fare={fare}
-          selectedVehicle={selectedVehicle}
-          setConfirmRidePanel={setConfirmRidePanel}
-          setVehicleFound={setVehicleFound}
-          setVehiclePanel={setVehiclePanel}
+          selectedVehicle={
+            selectedVehicle
+          }
+          setConfirmRidePanel={
+            setConfirmRidePanel
+          }
+          setVehicleFound={
+            setVehicleFound
+          }
+          setVehiclePanel={
+            setVehiclePanel
+          }
         />
-
       </div>
 
       {/* ================= LOOKING FOR DRIVER ================= */}
@@ -517,15 +550,19 @@ const Home = () => {
             : "translate-y-full"
         }`}
       >
-
         <LookingForDriver
           pickupLocation={pickup}
-          destinationLocation={destination}
-          selectedVehicle={selectedVehicle}
+          destinationLocation={
+            destination
+          }
+          selectedVehicle={
+            selectedVehicle
+          }
           fare={fare}
-          setVehicleFound={setVehicleFound}
+          setVehicleFound={
+            setVehicleFound
+          }
         />
-
       </div>
 
       {/* ================= WAITING FOR DRIVER ================= */}
@@ -537,23 +574,22 @@ const Home = () => {
             : "translate-y-full"
         }`}
       >
-
         {acceptedRideData && (
-
           <WaitingForDriver
-            setWaitingForDriver={setWaitingForDriverPanel}
-            rideData={acceptedRideData}
-            otpReceived={otpReceived}
+            setWaitingForDriver={
+              setWaitingForDriverPanel
+            }
+            rideData={
+              acceptedRideData
+            }
+            otpReceived={
+              otpReceived
+            }
           />
-
         )}
-
       </div>
-
     </div>
-
   );
-
 };
 
 export default Home;
