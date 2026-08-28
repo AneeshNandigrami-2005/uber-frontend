@@ -12,7 +12,7 @@ import { useGSAP } from "@gsap/react";
 import { toast } from "react-toastify";
 
 import LocationSearchPanel from "../components/LocationSearchPanel";
-import VehiclePanel from "../components/VehiclePanel";
+import VehiclePanel from "../components/vehiclePanel";
 import ConfirmRide from "../components/ConfirmRide";
 import LookingForDriver from "../components/LookingForDriver";
 import WaitingForDriver from "../components/WaitingForDriver";
