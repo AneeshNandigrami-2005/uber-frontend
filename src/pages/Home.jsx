@@ -17,7 +17,7 @@ import ConfirmRide from "../components/ConfirmRide";
 import LookingForDriver from "../components/LookingForDriver";
 import WaitingForDriver from "../components/WaitingForDriver";
 import pickupNotificationSound from "../assets/pickup-notification.mp3";
-
+import VehiclePanel from "./components/vehiclePanel";
 import { SocketDataContext } from "../context/SocketContext";
 import { UserDataContext } from "../context/UserContext";
 
